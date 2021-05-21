@@ -6,6 +6,9 @@ from django.urls import reverse_lazy
 from .forms import BookForm
 from .models import Book
 
+import pandas as pd
+import requests
+import json
 
 class Home(TemplateView):
     template_name = 'home.html'
@@ -18,7 +21,36 @@ def upload(request):
         fs = FileSystemStorage()
         name = fs.save(uploaded_file.name, uploaded_file)
         context['url'] = fs.url(name)
+        update_file(uploaded_file)
     return render(request, 'upload.html', context)
+
+
+def update_file(f):
+    df = pd.read_excel(f)
+
+    for i, row in df.iterrows():
+        print(i,row)
+        apiAddress = str(df.at[i, 'street']) + ',' + str(df.at[i, 'zip']) + ',' + str(df.at[i, 'city']) + ',' + str(
+            df.at[i, 'country'])
+
+        parameters = {
+            "key": "Mention your mapquest key here",
+            "location": apiAddress
+        }
+        response = requests.get("http://www.mapquestapi.com/geocoding/v1/address", params=parameters)
+        print(response)
+        data = response.text
+        dataJ = json.loads(data)['results']
+        lat = (dataJ[0]['locations'][0]['latLng']['lat'])
+        lng = (dataJ[0]['locations'][0]['latLng']['lng'])
+        print(lat, lng)
+
+        df.at[i, 'lat'] = lat
+        df.at[i, 'lng'] = lng
+
+    df.to_excel('media\modified.xlsx')
+
+
 
 
 def book_list(request):
